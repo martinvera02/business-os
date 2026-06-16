@@ -6,7 +6,6 @@ export function useAuthInit() {
   const { setUser, setSession, setBusinessContext, setLoading, reset } = useAuthStore()
 
   useEffect(() => {
-    // Sesión inicial
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       setUser(session?.user ?? null)
@@ -17,7 +16,6 @@ export function useAuthInit() {
       }
     })
 
-    // Escuchar cambios de auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session)
       setUser(session?.user ?? null)
@@ -41,16 +39,21 @@ export function useAuthInit() {
         .eq('user_id', userId)
         .single()
 
-      if (data && data.businesses) {
-        setBusinessContext({
-          business: data.businesses as any,
-          role: data.role as any,
-        })
+      if (data) {
+        const business = (data as any).businesses
+        const role = (data as any).role
+        if (business) {
+          setBusinessContext({ business, role })
+        }
       }
     } catch {
-      // El usuario no tiene negocio aún → irá al SetupWizard
+      // Sin negocio → irá al SetupWizard
     } finally {
       setLoading(false)
     }
   }
+}
+
+export function useAuth() {
+  return useAuthStore()
 }
