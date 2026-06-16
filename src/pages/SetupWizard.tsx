@@ -51,9 +51,9 @@ export default function SetupWizard() {
         .insert({
           name: name.trim(),
           slug,
-          plan: 'free',
+          plan: 'free' as any,
           settings: { sector },
-        })
+        } as any)
         .select()
         .single()
 
@@ -62,20 +62,20 @@ export default function SetupWizard() {
       // 2. Asociar usuario como owner
       const { error: userError } = await supabase
         .from('business_users')
-        .insert({ business_id: business.id, user_id: user.id, role: 'owner' })
+        .insert({ business_id: (business as any).id, user_id: user.id, role: 'owner' } as any)
 
       if (userError) throw userError
 
       // 3. Crear primer servicio si se rellenó
       if (serviceName.trim()) {
         await supabase.from('services').insert({
-          business_id: business.id,
+          business_id: (business as any).id,
           name: serviceName.trim(),
           duration_min: parseInt(serviceDuration),
           price: Math.round(parseFloat(servicePrice || '0') * 100),
           color: '#1A56DB',
           active: true,
-        })
+        } as any)
       }
 
       // 4. Actualizar contexto local

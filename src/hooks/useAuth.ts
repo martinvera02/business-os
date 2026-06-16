@@ -54,7 +54,3 @@ export function useAuthInit() {
     }
   }
 }
-
-export function useAuth() {
-  return useAuthStore()
-}
