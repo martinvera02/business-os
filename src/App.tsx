@@ -10,7 +10,6 @@ import SetupGuard from '@/components/auth/SetupGuard'
 // Auth
 import LoginPage from '@/pages/auth/LoginPage'
 import RegisterPage from '@/pages/auth/RegisterPage'
-import CallbackPage from '@/pages/auth/CallbackPage'
 
 // App
 import SetupWizard from '@/pages/SetupWizard'
@@ -43,7 +42,6 @@ function AppRoutes() {
       {/* Públicas */}
       <Route path="/auth/login"    element={<LoginPage />} />
       <Route path="/auth/register" element={<RegisterPage />} />
-      <Route path="/auth/callback" element={<CallbackPage />} />
 
       {/* Protegidas */}
       <Route element={<ProtectedRoute />}>
