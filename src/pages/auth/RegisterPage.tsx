@@ -25,29 +25,56 @@ export default function RegisterPage() {
 
     setLoading(true)
 
-    const { error } = await supabase.auth.signUp({
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email: email.trim(),
       password,
     })
 
-    if (error) {
-      setError(error.message)
+    if (signUpError) {
+      setError(signUpError.message)
       setLoading(false)
       return
     }
 
-    // Iniciar sesión automáticamente tras el registro
-    const { error: loginError } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    })
+    // Si signUp ya devuelve una sesión activa (confirm email desactivado), úsala directamente
+    let session = signUpData.session
 
-    if (loginError) {
-      setError(loginError.message)
+    // Si no, forzamos login y esperamos confirmación real de la sesión
+    if (!session) {
+      const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      })
+
+      if (loginError) {
+        setError(loginError.message)
+        setLoading(false)
+        return
+      }
+      session = loginData.session
+    }
+
+    // Verificación final: confirmar que getSession() devuelve la sesión activa
+    // antes de navegar, para que auth.uid() esté disponible en el siguiente insert
+    let attempts = 0
+    let confirmedSession = null
+    while (attempts < 10 && !confirmedSession) {
+      const { data } = await supabase.auth.getSession()
+      if (data.session) {
+        confirmedSession = data.session
+        break
+      }
+      await new Promise((r) => setTimeout(r, 150))
+      attempts++
+    }
+
+    if (!confirmedSession) {
+      setError('No se pudo iniciar la sesión correctamente. Intenta hacer login manualmente.')
       setLoading(false)
       return
     }
 
+    setLoading(false)
     navigate('/setup')
   }
 
