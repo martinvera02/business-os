@@ -43,20 +43,27 @@ export default function SetupWizard() {
     setError(null)
 
     try {
-      // Verificación defensiva: confirmar que hay sesión activa real
-      // antes de intentar el insert, evita el fallo de RLS por JWT no propagado
-      const { data: sessionData } = await supabase.auth.getSession()
-      const currentUser = sessionData.session?.user ?? user
+      // DEBUG: imprimir estado real de la sesión antes de nada
+      const { data: sessionData, error: sessionErr } = await supabase.auth.getSession()
+      console.log('🔍 SESSION:', sessionData.session)
+      console.log('🔍 SESSION ERROR:', sessionErr)
+      console.log('🔍 USER ID:', sessionData.session?.user?.id)
+      console.log('🔍 USER ROLE (from store):', user)
 
+      const currentUser = sessionData.session?.user ?? user
       if (!currentUser) {
-        setError('Tu sesión ha caducado. Por favor, vuelve a iniciar sesión.')
+        setError('No hay sesión activa. Vuelve a iniciar sesión.')
         setLoading(false)
         navigate('/auth/login')
         return
       }
 
-      // 1. Crear el negocio
       const slug = `${slugify(name)}-${Date.now().toString(36)}`
+
+      console.log('🔍 Intentando insert en businesses con:', {
+        name: name.trim(), slug, plan: 'free', settings: { sector },
+      })
+
       const { data: business, error: bizError } = await supabase
         .from('businesses')
         .insert({
@@ -68,9 +75,11 @@ export default function SetupWizard() {
         .select()
         .single()
 
+      console.log('🔍 RESULTADO business:', business)
+      console.log('🔍 ERROR COMPLETO:', JSON.stringify(bizError, null, 2))
+
       if (bizError || !business) throw bizError ?? new Error('No se pudo crear el negocio')
 
-      // 2. Asociar usuario como owner
       const { error: userError } = await supabase
         .from('business_users')
         .insert({
@@ -79,11 +88,12 @@ export default function SetupWizard() {
           role: 'owner',
         } as any)
 
+      console.log('🔍 ERROR business_users:', JSON.stringify(userError, null, 2))
+
       if (userError) throw userError
 
-      // 3. Crear primer servicio si se rellenó
       if (serviceName.trim()) {
-        await supabase.from('services').insert({
+        const { error: serviceError } = await supabase.from('services').insert({
           business_id: (business as any).id,
           name: serviceName.trim(),
           duration_min: parseInt(serviceDuration),
@@ -91,12 +101,13 @@ export default function SetupWizard() {
           color: '#1A56DB',
           active: true,
         } as any)
+        console.log('🔍 ERROR services:', JSON.stringify(serviceError, null, 2))
       }
 
-      // 4. Actualizar contexto local
       setBusinessContext({ business, role: 'owner' })
       navigate('/dashboard')
     } catch (err: any) {
+      console.error('🔍 CATCH FINAL:', err)
       setError(err?.message ?? 'Error inesperado')
     } finally {
       setLoading(false)
@@ -111,7 +122,6 @@ export default function SetupWizard() {
           <p className="text-sm text-gray-500 mt-1">Configura tu negocio en 3 pasos</p>
         </div>
 
-        {/* Stepper */}
         <div className="flex items-center justify-between mb-6 px-2">
           {STEPS.map((label, i) => (
             <div key={i} className="flex items-center gap-1">
@@ -135,7 +145,6 @@ export default function SetupWizard() {
 
         <div className="card">
           <div className="card-body space-y-4">
-            {/* Paso 0: nombre */}
             {step === 0 && (
               <>
                 <h2 className="text-base font-semibold text-gray-900">¿Cómo se llama tu negocio?</h2>
@@ -150,7 +159,6 @@ export default function SetupWizard() {
               </>
             )}
 
-            {/* Paso 1: sector */}
             {step === 1 && (
               <>
                 <h2 className="text-base font-semibold text-gray-900">¿A qué sector pertenece?</h2>
@@ -172,7 +180,6 @@ export default function SetupWizard() {
               </>
             )}
 
-            {/* Paso 2: primer servicio */}
             {step === 2 && (
               <>
                 <h2 className="text-base font-semibold text-gray-900">Añade tu primer servicio</h2>
@@ -196,7 +203,6 @@ export default function SetupWizard() {
               </>
             )}
 
-            {/* Paso 3: resumen */}
             {step === 3 && (
               <div className="text-center py-2">
                 <div className="text-4xl mb-3">🎉</div>
@@ -209,7 +215,6 @@ export default function SetupWizard() {
 
             {error && <p className="text-xs text-danger">{error}</p>}
 
-            {/* Botones de navegación */}
             <div className="flex gap-3 pt-2">
               {step > 0 && step < 3 && (
                 <button onClick={() => setStep(s => s - 1)} className="btn-secondary flex-1">
