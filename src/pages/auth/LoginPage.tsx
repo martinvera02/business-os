@@ -14,14 +14,18 @@ export default function LoginPage() {
     setLoading(true)
     setError(null)
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: email.trim(),
       password,
     })
 
     if (error) {
       setError('Email o contraseña incorrectos')
-    } else {
+      setLoading(false)
+      return
+    }
+
+    if (data.session) {
       navigate('/dashboard')
     }
     setLoading(false)

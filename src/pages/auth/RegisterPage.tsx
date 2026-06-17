@@ -25,57 +25,28 @@ export default function RegisterPage() {
 
     setLoading(true)
 
-    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+    // Igual que en Beer League: signUp directo, sin confirmación de email.
+    // Si "Confirm email" está desactivado en Supabase, signUp ya devuelve sesión activa.
+    const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
     })
 
-    if (signUpError) {
-      setError(signUpError.message)
+    if (error) {
+      setError(error.message)
       setLoading(false)
       return
     }
 
-    // Si signUp ya devuelve una sesión activa (confirm email desactivado), úsala directamente
-    let session = signUpData.session
-
-    // Si no, forzamos login y esperamos confirmación real de la sesión
-    if (!session) {
-      const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      })
-
-      if (loginError) {
-        setError(loginError.message)
-        setLoading(false)
-        return
-      }
-      session = loginData.session
-    }
-
-    // Verificación final: confirmar que getSession() devuelve la sesión activa
-    // antes de navegar, para que auth.uid() esté disponible en el siguiente insert
-    let attempts = 0
-    let confirmedSession = null
-    while (attempts < 10 && !confirmedSession) {
-      const { data } = await supabase.auth.getSession()
-      if (data.session) {
-        confirmedSession = data.session
-        break
-      }
-      await new Promise((r) => setTimeout(r, 150))
-      attempts++
-    }
-
-    if (!confirmedSession) {
-      setError('No se pudo iniciar la sesión correctamente. Intenta hacer login manualmente.')
-      setLoading(false)
-      return
+    if (data.session) {
+      // Sesión activa inmediatamente → directo al wizard
+      navigate('/setup')
+    } else {
+      // Por si el proyecto tuviera confirmación activada
+      setError('Revisa tu email para confirmar la cuenta antes de continuar.')
     }
 
     setLoading(false)
-    navigate('/setup')
   }
 
   return (
