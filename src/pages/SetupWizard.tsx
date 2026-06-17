@@ -39,11 +39,22 @@ export default function SetupWizard() {
   }
 
   async function handleFinish() {
-    if (!user) return
     setLoading(true)
     setError(null)
 
     try {
+      // Verificación defensiva: confirmar que hay sesión activa real
+      // antes de intentar el insert, evita el fallo de RLS por JWT no propagado
+      const { data: sessionData } = await supabase.auth.getSession()
+      const currentUser = sessionData.session?.user ?? user
+
+      if (!currentUser) {
+        setError('Tu sesión ha caducado. Por favor, vuelve a iniciar sesión.')
+        setLoading(false)
+        navigate('/auth/login')
+        return
+      }
+
       // 1. Crear el negocio
       const slug = `${slugify(name)}-${Date.now().toString(36)}`
       const { data: business, error: bizError } = await supabase
@@ -62,7 +73,11 @@ export default function SetupWizard() {
       // 2. Asociar usuario como owner
       const { error: userError } = await supabase
         .from('business_users')
-        .insert({ business_id: (business as any).id, user_id: user.id, role: 'owner' } as any)
+        .insert({
+          business_id: (business as any).id,
+          user_id: currentUser.id,
+          role: 'owner',
+        } as any)
 
       if (userError) throw userError
 
